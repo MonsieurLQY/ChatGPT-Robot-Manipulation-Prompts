@@ -4,29 +4,33 @@
             "move_hand(right)",
             "grasp_object(right)",
             "open_by_rotate(right)",
-            "move_hand(right)",
+            "release_object(right)",
+            "move_hand(left)",
             "grasp_object(left)",
-            "detach_from_plane(right)",
-            "move_hand(left)",
-            "move_hand(left)",
+            "detach_from_plane(left)",
             "move_hand(left)",
             "attach_to_plane(left)",
             "release_object(left)",
-            "close_by_rotate(right)"
+            "move_hand(right)",
+            "grasp_object(right)",
+            "close_by_rotate(right)",
+            "release_object(right)"
         ],
         "step_instructions": [
             "move the right hand near the fridge handle",
             "grasp the fridge handle with the right hand",
-            "open the fridge by pulling the handle with the right hand",
-            "move the right hand near the juice",
+            "open the fridge by rotating the handle with the right hand",
+            "release the fridge handle with the right hand",
+            "move the left hand near the juice",
             "grasp the juice with the left hand",
-            "pick up the juice with the left hand",
-            "move the left hand to the floor",
-            "move the left hand to the floor",
-            "move the left hand to the floor",
-            "place the juice on the floor with the left hand",
-            "release the juice with the left hand",
-            "close the fridge by pushing the handle with the right hand"
+            "pick up the juice from inside the fridge with the left hand",
+            "move the left hand with the juice toward the floor",
+            "place the juice on the floor",
+            "release the juice on the floor",
+            "move the right hand near the fridge handle",
+            "grasp the fridge handle with the right hand",
+            "close the fridge by rotating the handle with the right hand",
+            "release the fridge handle with the right hand"
         ],
         "object_names": [
             "<fridge_handle>",
@@ -67,6 +71,6 @@
             "<juice>": "on_something(<floor>)"
         }
     },
-    "instruction_summary": "Open the fridge with the right arm, take the juice and put it on the floor with the left arm, and close the fridge",
+    "instruction_summary": "Open the fridge, move the juice to the floor, and close the fridge.",
     "question": ""
 }

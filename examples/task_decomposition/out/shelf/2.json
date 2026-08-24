@@ -5,8 +5,6 @@
             "grasp_object()",
             "detach_from_plane()",
             "move_object()",
-            "move_object()",
-            "move_object()",
             "attach_to_plane()",
             "release_object()"
         ],
@@ -14,10 +12,8 @@
             "move the hand near the juice",
             "grasp the juice",
             "pick up the juice",
-            "take the juice from the top of the shelf",
-            "move the juice downward",
-            "move the juice above the table",
-            "place the juice",
+            "bring the juice above the table",
+            "put the juice on the table",
             "release the juice"
         ],
         "object_name": "<juice>"

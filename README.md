@@ -6,18 +6,50 @@ For more information, please see our [blog post](https://www.microsoft.com/en-us
 
 ![overview](./img/overview.jpg)
 ## How to use
-> 🚀 **New Feature Alert**: We've updated the prompts to support the OpenAI's official API. Additionally, we've updated the prompts to support the latest version of the Azure OpenAI's API (as of September 2023).
-1. We provide sample codes for using ChatGPT through [Azure OpenAI](https://learn.microsoft.com/en-us/azure/cognitive-services/openai/overview) and [OpenAI API](https://platform.openai.com/docs/api-reference). Fill in the [secrets.json](./secrets.json) with your credential information. Even if you do not have a subscription, you can try it out by copying and pasting the prompts into the [OpenAI's interface](https://chat.openai.com/).
+> 🚀 **New Feature Alert**: The examples support Azure OpenAI and the OpenAI-compatible GigaToken/Sub2API gateway.
+1. Fill in [secrets.json](./secrets.json) when using [Azure OpenAI](https://learn.microsoft.com/en-us/azure/cognitive-services/openai/overview). GigaToken credentials are loaded separately from environment variables or a key file as described below. Even if you do not have a subscription, you can try it out by copying and pasting the prompts into the [OpenAI interface](https://chat.openai.com/).
 
-2. If you have a subscription of Azure OpenAI or OpenAI, install the required python packages by running the following command in a terminal session (note: we have confirmed that the sample codes work with python 3.9.16):
+2. If you have access to Azure OpenAI or GigaToken/Sub2API, install the required Python packages by running the following command in a terminal session (note: we have confirmed that the sample codes work with Python 3.9.16):
 ```bash
 > pip install -r requirements.txt
 ```
 Then, go to a subfolder in [examples/](./examples) (for example, [examples/task_decomposition](./examples/task_decomposition)), run the following command to run the sample code:
 ```bash
-python aimodel.py --scenarios <scenario_name>
+python aimodel.py --scenario <scenario_name>
 ```
 Replace `<scenario_name>` with the name of the scenario you want to run. Specific scenario names can be found in the `aimodel.py`.
+
+### GigaToken / Sub2API
+
+The non-Azure examples use an OpenAI-compatible GigaToken endpoint with these
+defaults:
+
+- Base URL: `https://sub2api.gigaapi.cc/v1`
+- Model: `gpt-5.4`
+- API key file: `~/.config/robopara/gigatoken-key.txt`
+
+Store the API key outside this repository:
+
+```bash
+mkdir -p ~/.config/robopara
+read -rsp "GigaToken API Key: " GIGATOKEN_API_KEY
+echo
+printf '%s' "$GIGATOKEN_API_KEY" > ~/.config/robopara/gigatoken-key.txt
+chmod 600 ~/.config/robopara/gigatoken-key.txt
+unset GIGATOKEN_API_KEY
+```
+
+The constructor arguments `gigatoken_api_path`, `gigatoken_base_url`, and
+`gigatoken_model` can override these defaults. The corresponding environment
+variables are `GIGATOKEN_API_KEY_PATH`, `GIGATOKEN_BASE_URL`, and
+`GIGATOKEN_MODEL`. `GIGATOKEN_API_KEY` can be used instead of a key file.
+
+Run a sample from its directory:
+
+```bash
+cd examples/task_decomposition
+python aimodel.py --scenario shelf
+```
 
 ## Bibliography
 ```

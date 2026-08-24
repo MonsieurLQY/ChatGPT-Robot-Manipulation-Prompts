@@ -5,7 +5,15 @@ import json
 import os
 import re
 import time
+from pathlib import Path
 from virtualhome.simulation.unity_simulator.comm_unity import UnityCommunication
+
+
+DEFAULT_GIGATOKEN_KEY_PATH = (
+    Path.home() / ".config" / "robopara" / "gigatoken-key.txt"
+)
+DEFAULT_GIGATOKEN_BASE_URL = "https://sub2api.gigaapi.cc/v1"
+DEFAULT_VLM_MODEL = "gpt-5.4"
 
 enc = tiktoken.get_encoding("cl100k_base")
 with open('../../secrets.json') as f:
@@ -282,7 +290,10 @@ class ChatGPT:
             credentials,
             prompt_load_order,
             use_azure=True,
-            api_version='2023-05-15'):
+            api_version='2023-05-15',
+            gigatoken_api_path=None,
+            gigatoken_base_url=None,
+            gigatoken_model=None):
         self.use_azure = use_azure
         if self.use_azure:
             openai.api_key = credentials["azureopenai"]["AZURE_OPENAI_KEY"]
@@ -293,8 +304,10 @@ class ChatGPT:
                     f'api_version must be one of {self.VALID_API_VERSIONS}')
             openai.api_version = api_version
         else:
-            openai.organization = credentials["openai"]["YOUR_ORG_ID"]
-            openai.api_key = credentials["openai"]["OPENAI_API_KEY"]
+            self._configure_gigatoken(
+                api_path=gigatoken_api_path,
+                base_url=gigatoken_base_url,
+                model=gigatoken_model)
 
         self.credentials = credentials
         self.messages = []
@@ -327,6 +340,54 @@ class ChatGPT:
         fp_query = os.path.join(dir_query, 'query.txt')
         with open(fp_query) as f:
             self.query = f.read()
+
+    def _configure_gigatoken(self, api_path=None, base_url=None, model=None):
+        self.model = model or os.getenv("GIGATOKEN_MODEL") or DEFAULT_VLM_MODEL
+
+        configured_base_url = (
+            base_url
+            or os.getenv("GIGATOKEN_BASE_URL")
+            or DEFAULT_GIGATOKEN_BASE_URL
+        )
+        if not configured_base_url:
+            raise ValueError(
+                "Gigatoken base URL is required. Pass gigatoken_base_url or "
+                "set GIGATOKEN_BASE_URL.")
+        self.base_url = configured_base_url.strip().rstrip("/")
+        if not self.base_url.startswith(("https://", "http://")):
+            raise ValueError(
+                "Gigatoken base URL must start with http:// or https://")
+
+        env_api_key = os.getenv("GIGATOKEN_API_KEY", "").strip()
+        configured_key_path = (
+            api_path
+            or os.getenv("GIGATOKEN_API_KEY_PATH")
+            or DEFAULT_GIGATOKEN_KEY_PATH
+        )
+        self.api_key_path = Path(configured_key_path).expanduser()
+
+        if env_api_key:
+            self.api_key = env_api_key
+        else:
+            try:
+                self.api_key = self.api_key_path.read_text(
+                    encoding="utf-8").strip()
+            except FileNotFoundError as exc:
+                raise FileNotFoundError(
+                    f"Gigatoken API key file not found: {self.api_key_path}. "
+                    "Create it or set GIGATOKEN_API_KEY.") from exc
+            except OSError as exc:
+                raise OSError(
+                    "Error reading Gigatoken API key file "
+                    f"{self.api_key_path}: {exc}") from exc
+
+        if not self.api_key:
+            raise ValueError("Gigatoken API key is empty")
+
+        openai.api_type = "open_ai"
+        openai.api_base = self.base_url
+        openai.api_key = self.api_key
+        openai.organization = None
 
     def create_prompt(self):
         prompt = ""
@@ -363,15 +424,19 @@ class ChatGPT:
         return prompt
 
     def extract_json_part(self, text):
-        # because the json part is in the middle of the text, we need to extract it.
-        # json part is between ```python and ```.
-        # skip if there is no json part
-        if text.find('```python') == -1:
-            return text
-        text_json = text[text.find(
-            '```python') + len('```python'):text.find('\n```')]
-        text_json.replace('```', '')
-        return text_json
+        text = text.strip()
+        fenced_json = re.search(
+            r'```(?:json|python)?\s*(.*?)\s*```',
+            text,
+            flags=re.DOTALL | re.IGNORECASE)
+        if fenced_json:
+            return fenced_json.group(1).strip()
+
+        json_start = text.find('{')
+        json_end = text.rfind('}')
+        if json_start != -1 and json_end > json_start:
+            return text[json_start:json_end + 1]
+        return text
 
     def generate(self, message, environment, is_user_feedback=False):
         if is_user_feedback:
@@ -418,15 +483,14 @@ class ChatGPT:
             text = response['choices'][0]['message']['content']
         else:
             response = openai.ChatCompletion.create(
-                model="gpt-3.5-turbo-16k",
-                # "gpt-4" is available, too. Check the available models in https://platform.openai.com/docs/models/
+                model=self.model,
                 messages=self.create_prompt(),
                 temperature=2.0,
                 max_tokens=self.max_completion_length,
                 top_p=0.5,
                 frequency_penalty=0.0,
                 presence_penalty=0.0)
-            text = response['choices'][0].message.content
+            text = response['choices'][0]['message']['content']
         self.last_response_raw = text
         self.messages.append(
             {"sender": "assistant", "text": self.last_response_raw})

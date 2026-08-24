@@ -4,6 +4,14 @@ import json
 import os
 import re
 import argparse
+from pathlib import Path
+
+
+DEFAULT_GIGATOKEN_KEY_PATH = (
+    Path.home() / ".config" / "robopara" / "gigatoken-key.txt"
+)
+DEFAULT_GIGATOKEN_BASE_URL = "https://sub2api.gigaapi.cc/v1"
+DEFAULT_VLM_MODEL = "gpt-5.4"
 
 enc = tiktoken.get_encoding("cl100k_base")
 with open('../../secrets.json') as f:
@@ -31,7 +39,10 @@ class ChatGPT:
             credentials,
             prompt_load_order,
             use_azure=True,
-            api_version='2023-05-15'):
+            api_version='2023-05-15',
+            gigatoken_api_path=None,
+            gigatoken_base_url=None,
+            gigatoken_model=None):
         self.use_azure = use_azure
         if self.use_azure:
             openai.api_key = credentials["azureopenai"]["AZURE_OPENAI_KEY"]
@@ -42,8 +53,10 @@ class ChatGPT:
                     f'api_version must be one of {self.VALID_API_VERSIONS}')
             openai.api_version = api_version
         else:
-            openai.organization = credentials["openai"]["YOUR_ORG_ID"]
-            openai.api_key = credentials["openai"]["OPENAI_API_KEY"]
+            self._configure_gigatoken(
+                api_path=gigatoken_api_path,
+                base_url=gigatoken_base_url,
+                model=gigatoken_model)
         self.credentials = credentials
         self.messages = []
         self.max_token_length = 8000
@@ -74,6 +87,54 @@ class ChatGPT:
         fp_query = os.path.join(dir_query, 'query.txt')
         with open(fp_query) as f:
             self.query = f.read()
+
+    def _configure_gigatoken(self, api_path=None, base_url=None, model=None):
+        self.model = model or os.getenv("GIGATOKEN_MODEL") or DEFAULT_VLM_MODEL
+
+        configured_base_url = (
+            base_url
+            or os.getenv("GIGATOKEN_BASE_URL")
+            or DEFAULT_GIGATOKEN_BASE_URL
+        )
+        if not configured_base_url:
+            raise ValueError(
+                "Gigatoken base URL is required. Pass gigatoken_base_url or "
+                "set GIGATOKEN_BASE_URL.")
+        self.base_url = configured_base_url.strip().rstrip("/")
+        if not self.base_url.startswith(("https://", "http://")):
+            raise ValueError(
+                "Gigatoken base URL must start with http:// or https://")
+
+        env_api_key = os.getenv("GIGATOKEN_API_KEY", "").strip()
+        configured_key_path = (
+            api_path
+            or os.getenv("GIGATOKEN_API_KEY_PATH")
+            or DEFAULT_GIGATOKEN_KEY_PATH
+        )
+        self.api_key_path = Path(configured_key_path).expanduser()
+
+        if env_api_key:
+            self.api_key = env_api_key
+        else:
+            try:
+                self.api_key = self.api_key_path.read_text(
+                    encoding="utf-8").strip()
+            except FileNotFoundError as exc:
+                raise FileNotFoundError(
+                    f"Gigatoken API key file not found: {self.api_key_path}. "
+                    "Create it or set GIGATOKEN_API_KEY.") from exc
+            except OSError as exc:
+                raise OSError(
+                    "Error reading Gigatoken API key file "
+                    f"{self.api_key_path}: {exc}") from exc
+
+        if not self.api_key:
+            raise ValueError("Gigatoken API key is empty")
+
+        openai.api_type = "open_ai"
+        openai.api_base = self.base_url
+        openai.api_key = self.api_key
+        openai.organization = None
 
     # See
     # https://learn.microsoft.com/en-us/azure/cognitive-services/openai/how-to/chatgpt#chatml
@@ -112,14 +173,19 @@ class ChatGPT:
         return prompt
 
     def extract_json_part(self, text):
-        # because the json part is in the middle of the text, we need to extract it.
-        # json part is between ``` and ```.
-        # skip if there is no json part
-        if text.find('```') == -1:
-            return text
-        text_json = text[text.find(
-            '```') + 3:text.find('```', text.find('```') + 3)]
-        return text_json
+        text = text.strip()
+        fenced_json = re.search(
+            r'```(?:json|python)?\s*(.*?)\s*```',
+            text,
+            flags=re.DOTALL | re.IGNORECASE)
+        if fenced_json:
+            return fenced_json.group(1).strip()
+
+        json_start = text.find('{')
+        json_end = text.rfind('}')
+        if json_start != -1 and json_end > json_start:
+            return text[json_start:json_end + 1]
+        return text
 
     def generate(self, message, environment, is_user_feedback=False):
         if is_user_feedback:
@@ -166,15 +232,14 @@ class ChatGPT:
             text = response['choices'][0]['message']['content']
         else:
             response = openai.ChatCompletion.create(
-                model="gpt-3.5-turbo-16k",
-                # "gpt-4" is available, too. Check the available models in https://platform.openai.com/docs/models/
+                model=self.model,
                 messages=self.create_prompt(),
                 temperature=0.1,
                 max_tokens=self.max_completion_length,
                 top_p=0.5,
                 frequency_penalty=0.0,
                 presence_penalty=0.0)
-            text = response['choices'][0].message.content
+            text = response['choices'][0]['message']['content']
         print(text)
         self.last_response = text
         self.last_response = self.extract_json_part(self.last_response)
@@ -185,10 +250,11 @@ class ChatGPT:
         try:
             self.json_dict = json.loads(self.last_response, strict=False)
             self.environment = self.json_dict["environment_after"]
-        except BaseException:
+        except (json.JSONDecodeError, KeyError, TypeError) as exc:
             self.json_dict = None
-            import pdb
-            pdb.set_trace()
+            raise ValueError(
+                "Model response was not valid task JSON. "
+                "See last_response.txt for the extracted response.") from exc
 
         if len(self.messages) > 0 and self.last_response is not None:
             self.messages.append(
@@ -237,8 +303,7 @@ if __name__ == "__main__":
     aimodel = ChatGPT(
         credentials,
         prompt_load_order=prompt_load_order,
-        use_azure=True,
-        api_version='2022-12-01')
+        use_azure=False)
 
     if not os.path.exists('./out/' + scenario_name):
         os.makedirs('./out/' + scenario_name)
