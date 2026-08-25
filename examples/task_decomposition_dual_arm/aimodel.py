@@ -1,5 +1,6 @@
 import openai
 import tiktoken
+import base64
 import json
 import os
 import re
@@ -12,6 +13,12 @@ DEFAULT_GIGATOKEN_KEY_PATH = (
 )
 DEFAULT_GIGATOKEN_BASE_URL = "https://sub2api.gigaapi.cc/v1"
 DEFAULT_VLM_MODEL = "gpt-5.4"
+SUPPORTED_IMAGE_TYPES = {
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".webp": "image/webp",
+}
 
 enc = tiktoken.get_encoding("cl100k_base")
 with open('../../secrets.json') as f:
@@ -138,6 +145,16 @@ class ChatGPT:
 
     # See
     # https://learn.microsoft.com/en-us/azure/cognitive-services/openai/how-to/chatgpt#chatml
+    def get_text_content(self, content):
+        if isinstance(content, str):
+            return content
+        if isinstance(content, list):
+            return ''.join(
+                item.get('text', '')
+                for item in content
+                if isinstance(item, dict) and item.get('type') == 'text')
+        return ''
+
     def create_prompt(self):
         prompt = ""
         if self.use_azure and openai.api_version == '2022-12-01':
@@ -162,7 +179,7 @@ class ChatGPT:
                     {"role": message['sender'], "content": message['text']})
             prompt_content = ""
             for message in prompt:
-                prompt_content += message["content"]
+                prompt_content += self.get_text_content(message["content"])
             print('prompt length: ' + str(len(enc.encode(prompt_content))))
             if len(enc.encode(prompt_content)) > self.max_token_length - \
                     self.max_completion_length:
@@ -187,19 +204,53 @@ class ChatGPT:
             return text[json_start:json_end + 1]
         return text
 
-    def generate(self, message, environment, is_user_feedback=False):
+    def encode_image(self, image_path):
+        image_path = Path(image_path).expanduser()
+        if not image_path.is_file():
+            raise ValueError(f'Image file not found: {image_path}')
+        mime_type = SUPPORTED_IMAGE_TYPES.get(image_path.suffix.lower())
+        if mime_type is None:
+            raise ValueError('Image must be a PNG, JPEG, or WebP file')
+        try:
+            image_bytes = image_path.read_bytes()
+        except OSError as exc:
+            raise ValueError(
+                f'Could not read image file {image_path}: {exc}') from exc
+        encoded_image = base64.b64encode(image_bytes).decode('ascii')
+        return f'data:{mime_type};base64,{encoded_image}'
+
+    def generate(
+            self,
+            message,
+            environment,
+            is_user_feedback=False,
+            image_path=None):
         if is_user_feedback:
             self.messages.append({'sender': 'user',
                                   'text': message + "\n" + self.instruction})
         else:
             text_base = self.query
             if text_base.find('[ENVIRONMENT]') != -1:
+                if image_path is not None:
+                    environment = 'Refer to the attached image.'
                 text_base = text_base.replace(
                     '[ENVIRONMENT]', json.dumps(environment))
             if text_base.find('[INSTRUCTION]') != -1:
                 text_base = text_base.replace('[INSTRUCTION]', message)
                 self.instruction = text_base
-            self.messages.append({'sender': 'user', 'text': text_base})
+            if image_path is None:
+                content = text_base
+            else:
+                content = [
+                    {'type': 'text', 'text': text_base},
+                    {
+                        'type': 'image_url',
+                        'image_url': {
+                            'url': self.encode_image(image_path)
+                        }
+                    }
+                ]
+            self.messages.append({'sender': 'user', 'text': content})
 
         if self.use_azure and openai.api_version == '2022-12-01':
             # Remove unsafe user inputs. May need further refinement in the
@@ -277,6 +328,10 @@ if __name__ == "__main__":
         type=str,
         required=True,
         help='scenario name (see the code for details)')
+    parser.add_argument(
+        '--image',
+        type=str,
+        help='optional image override for an image-based scenario')
     args = parser.parse_args()
     scenario_name = args.scenario
     # Dual arm manipulation
@@ -297,6 +352,15 @@ if __name__ == "__main__":
         instructions = [
             'Open the fridge with the right arm, take the juice and put it on the floor with the left arm, and close the fridge',
         ]
+        image_path = None
+        if args.image is not None:
+            parser.error('--image is not used by the fridge scenario')
+    elif scenario_name == 'office_p':
+        environment = None
+        image_path = args.image or '../../img/env_office_p2.png'
+        instructions = [
+            'Clean and Organize the Desktop.',
+        ]
     else:
         parser.error('Invalid scenario name:' + scenario_name)
 
@@ -308,11 +372,15 @@ if __name__ == "__main__":
     if not os.path.exists('./out/' + scenario_name):
         os.makedirs('./out/' + scenario_name)
     for i, instruction in enumerate(instructions):
-        print(json.dumps(environment))
+        if image_path is None:
+            print(json.dumps(environment))
+        else:
+            print(f'environment image: {image_path}')
         text = aimodel.generate(
             instruction,
             environment,
-            is_user_feedback=False)
+            is_user_feedback=False,
+            image_path=image_path)
         while True:
             user_feedback = input(
                 'user feedback (return empty if satisfied): ')

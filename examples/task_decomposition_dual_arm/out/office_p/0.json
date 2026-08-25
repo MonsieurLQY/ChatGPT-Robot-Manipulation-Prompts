@@ -1,0 +1,83 @@
+{
+    "task_cohesion": {
+        "task_sequence": [
+            "move_hand(right)",
+            "grasp_object(right)",
+            "detach_from_plane(right)",
+            "move_hand(right)",
+            "attach_to_plane(right)",
+            "release_object(right)",
+            "move_hand(right)",
+            "grasp_object(right)",
+            "detach_from_plane(right)",
+            "move_hand(right)",
+            "attach_to_plane(right)",
+            "release_object(right)",
+            "move_hand(right)",
+            "grasp_object(right)",
+            "detach_from_plane(right)",
+            "move_hand(right)",
+            "attach_to_plane(right)",
+            "release_object(right)"
+        ],
+        "step_instructions": [
+            "move the right hand near the dark container",
+            "grasp the dark container",
+            "pick up the dark container",
+            "move the dark container to a tidy place",
+            "place the dark container on the desktop",
+            "release the dark container",
+            "move the right hand near the gray container",
+            "grasp the gray container",
+            "pick up the gray container",
+            "move the gray container next to the dark container",
+            "place the gray container on the desktop",
+            "release the gray container",
+            "move the right hand near the blue container",
+            "grasp the blue container",
+            "pick up the blue container",
+            "move the blue container to the organized area",
+            "place the blue container on the desktop",
+            "release the blue container"
+        ],
+        "object_names": [
+            "<black_container>",
+            "<gray_container>",
+            "<blue_container>"
+        ]
+    },
+    "environment_before": {
+        "assets": [
+            "<table>"
+        ],
+        "asset_states": {},
+        "objects": [
+            "<black_container>",
+            "<gray_container>",
+            "<blue_container>"
+        ],
+        "object_states": {
+            "<black_container>": "on_something(<table>)",
+            "<gray_container>": "on_something(<table>)",
+            "<blue_container>": "on_something(<table>)"
+        }
+    },
+    "environment_after": {
+        "assets": [
+            "<table>"
+        ],
+        "asset_states": {},
+        "objects": [
+            "<black_container>",
+            "<gray_container>",
+            "<blue_container>"
+        ],
+        "object_states": {
+            "<black_container>": "on_something(<table>)",
+            "<gray_container>": "on_something(<table>)",
+            "<blue_container>": "on_something(<table>)"
+        }
+    },
+    "instruction_summary": "Clean and organize the desktop.",
+    "question": ""
+}
