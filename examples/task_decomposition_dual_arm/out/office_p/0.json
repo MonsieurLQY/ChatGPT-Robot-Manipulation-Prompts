@@ -1,53 +1,23 @@
 {
     "task_cohesion": {
         "task_sequence": [
-            "move_hand(right)",
-            "grasp_object(right)",
-            "detach_from_plane(right)",
-            "move_hand(right)",
-            "attach_to_plane(right)",
-            "release_object(right)",
-            "move_hand(right)",
-            "grasp_object(right)",
-            "close_by_rotate(right)",
-            "release_object(right)",
-            "move_hand(right)",
-            "grasp_object(right)",
-            "detach_from_plane(right)",
-            "move_hand(right)",
-            "release_object(right)",
-            "move_hand(right)",
-            "grasp_object(right)",
-            "detach_from_plane(right)",
-            "move_hand(right)",
-            "attach_to_plane(right)",
-            "release_object(right)",
-            "move_hand(right)",
+            "pick(right)",
+            "place(right)",
+            "flap_close(right)",
+            "pick(right)",
+            "place(right)",
+            "pick(right)",
+            "place(right)",
             "adjust(right)"
         ],
         "step_instructions": [
-            "move the right hand near the marker on the desktop",
-            "grasp the marker",
             "pick up the marker from the desktop",
-            "move the marker above the pen holder",
             "place the marker into the pen holder",
-            "release the marker",
-            "move the right hand near the laptop lid",
-            "grasp the laptop lid",
-            "close the laptop lid by rotating it downward",
-            "release the laptop lid",
-            "move the right hand near the trash on the desktop",
-            "grasp the trash",
+            "close the laptop lid",
             "pick up the trash from the desktop",
-            "move the trash above the trash bin",
-            "release the trash into the trash bin",
-            "move the right hand near the mouse on the desktop",
-            "grasp the mouse",
+            "place the trash into the trash bin",
             "pick up the mouse from the desktop",
-            "move the mouse above the laptop",
             "place the mouse on the laptop",
-            "release the mouse",
-            "move the right hand near the cup on the desktop",
             "adjust the position of the cup on the desktop"
         ],
         "object_names": [
@@ -55,65 +25,62 @@
             "<pen_holder>",
             "<laptop_lid>",
             "<trash>",
-            "<trash_bin>",
             "<mouse>",
             "<cup>"
         ]
     },
     "environment_before": {
         "assets": [
-            "<desktop>",
-            "<pen_holder>",
-            "<trash_bin>",
-            "<laptop>"
+            "<desktop>"
         ],
-        "asset_states": {
-            "<pen_holder>": "on_something(<desktop>)",
-            "<trash_bin>": "on_something(<desktop>)",
-            "<laptop>": "on_something(<desktop>)"
-        },
+        "asset_states": {},
         "objects": [
             "<marker>",
+            "<pen_holder>",
+            "<laptop>",
             "<laptop_lid>",
             "<trash>",
+            "<trash_bin>",
             "<mouse>",
             "<cup>"
         ],
         "object_states": {
             "<marker>": "on_something(<desktop>)",
+            "<pen_holder>": "on_something(<desktop>)",
+            "<laptop>": "on_something(<desktop>)",
             "<laptop_lid>": "open()",
             "<trash>": "on_something(<desktop>)",
+            "<trash_bin>": "on_something(<desktop>)",
             "<mouse>": "on_something(<desktop>)",
             "<cup>": "on_something(<desktop>)"
         }
     },
     "environment_after": {
         "assets": [
-            "<desktop>",
-            "<pen_holder>",
-            "<trash_bin>",
-            "<laptop>"
+            "<desktop>"
         ],
-        "asset_states": {
-            "<pen_holder>": "on_something(<desktop>)",
-            "<trash_bin>": "on_something(<desktop>)",
-            "<laptop>": "on_something(<desktop>)"
-        },
+        "asset_states": {},
         "objects": [
             "<marker>",
+            "<pen_holder>",
+            "<laptop>",
             "<laptop_lid>",
             "<trash>",
+            "<trash_bin>",
             "<mouse>",
             "<cup>"
         ],
         "object_states": {
             "<marker>": "inside_something(<pen_holder>)",
+            "<pen_holder>": "on_something(<desktop>)",
+            "<laptop>": "on_something(<desktop>)",
             "<laptop_lid>": "closed()",
             "<trash>": "inside_something(<trash_bin>)",
+            "<trash_bin>": "on_something(<desktop>)",
             "<mouse>": "on_something(<laptop>)",
             "<cup>": "on_something(<desktop>)"
         }
     },
-    "instruction_summary": "Pick up the marker from the desktop and put it into the pen holder, close the laptop lid, throw the trash into the trash bin, place the mouse on the laptop, and adjust the cup on the desktop.",
+    "instruction_summary": "Put the marker into the pen holder, close the laptop lid, throw the trash into the trash bin, place the mouse on the laptop, and adjust the cup.",
     "question": ""
 }

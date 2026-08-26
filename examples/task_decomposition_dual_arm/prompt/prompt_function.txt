@@ -2,21 +2,12 @@
 Necessary and sufficient robot actions are defined as follows:
 """
 "ROBOT ACTION LIST"
-move_hand(): Move the robot hand from one position to another with/without grasping an object.
-grasp_object(): Grasp an object.
-release_object(): Release an object in the robot hand.
-detach_from_plane(): Move the grabbed object from a state in which it is constrained by a plane to a state in which it is not constrained by any plane. For example, detach_from_plane() is used when a robot hand picks up an object on a table.
-attach_to_plane(): The opposite operation of detach_from_plane().
-open_by_rotate(): Open something by rotating an object that is rotationally constrained by its environment along its rotation. For example, when opening a refrigerator, the refrigerator handle makes this motion. Also, when opening the lid of a plastic bottle, the lid makes this motion.
-adjust_by_rotate(): Rotate an object that is rotationally constrained by its environment along its rotation. For example, when adjusting the temperature of a refrigerator, the temperature knob makes this motion.
-close_by_rotate(): The opposite operation of open_by_rotate().
-open_by_slide(): Moves an object that is translationally constrained in two axes from its environment along one unbounded axis. For example, when opening a sliding door or drawer, the handle makes this movement.
-adjust_by_slide(): Slide an object that is translationally constrained in two axes from its environment along one unbounded axis. For example, when widen the gap between a sliding door and the wall, the handle makes this movement.
-close_by_slide(): The opposite operation of open_by_slide().
-wipe_on_plane(): Move an object landing on a plane along two axes along that plane. For example, when wiping a window with a sponge, the sponge makes this motion.
-adjust(): Change the position or orientation of an object that rests freely on a plane, without detaching it from that plane. For example, when straightening a cup or aligning a book on a desk, the object makes this motion. Unlike adjust_by_rotate() and adjust_by_slide(), the object is not constrained by its environment.
+pick(): Take an object that is resting on or inside something, and hold it in the robot hand. This single action covers approaching the object, grasping it, and lifting it away from whatever was supporting it. For example, pick() is used when a robot hand takes a marker lying on a desk.
+place(): Put the object that is currently held in the robot hand onto or into a target, and let go of it. This single action covers carrying the object to the target, setting it down, and releasing it. It is the opposite operation of pick(). For example, place() is used when a robot hand puts a marker into a pen holder.
+flap_close(): Close a hinged flap or lid by rotating it about its hinge until it is shut. For example, when closing a laptop, the laptop lid makes this motion.
+adjust(): Change the position or orientation of an object without taking it away from the surface it is resting on. For example, when straightening a cup that sits askew on a desk, the cup makes this motion.
 """
-In the (), insert left or right to specify the hand.
+In the (), insert left or right to specify the hand. Never write anything else inside the parentheses, and never use an action that is not in the list above.
 -------------------------------------------------------
 The texts above are part of the overall instruction. Do not start working yet:
 [assistant]

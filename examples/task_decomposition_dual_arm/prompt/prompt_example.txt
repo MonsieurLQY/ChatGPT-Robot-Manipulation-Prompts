@@ -12,26 +12,14 @@ Example 1:
 - Output:
 {"task_cohesion": {
     "task_sequence": [
-        "move_hand(right)",
-        "grasp_object(right)",
-        "detach_from_plane(right)",
-        "move_hand(right)",
-        "move_hand(right)",
-        "move_hand(right)",
-        "attach_to_plane(right)",
-        "release_object(right)"
+        "pick(right)",
+        "place(right)"
     ],
     "step_instructions": [
-        "move the hand near the juice",
-        "grasp the juice",
-        "pick up the juice",
-        "take the juice from the shelf",
-        "move the juice upward",
-        "move the juice above the shelf",
-        "place the juice",
-        "release the juice"
+        "pick up the juice from the bottom shelf",
+        "place the juice on top of the shelf"
     ],
-    "object_name": ["<juice>"]},
+    "object_names": ["<juice>"]},
 "environment_before": {"assets":["<table>", "<shelf_bottom>", "<shelf_top>", "<trash_bin>", "<floor>"],
                 "asset_states": {"<shelf_bottom>": "on_something(<table>)", 
                                 "<trash_bin>": "on_something(<floor>)"},
@@ -57,20 +45,14 @@ Example 2:
 - Output:
 {"task_cohesion": {
     "task_sequence": [
-        "move-hand(right)",
-        "grasp-object(right)",
-        "pick-up-object(right)",
-        "move-object(right)",
-        "release-object(right)"
+        "pick(right)",
+        "place(right)"
     ],
     "step_instructions": [
-        "move your hand near the spam",
-        "grasp the spam",
-        "pick up the spam",
-        "bring the spam above the trash bin",
-        "release the spam to drop it in the trash bin"
+        "pick up the spam from the table",
+        "place the spam into the trash bin"
     ],
-    "object_name": ["<spam>"]},
+    "object_names": ["<spam>"]},
 "environment_before": {"assets":["<table>", "<shelf_bottom>", "<shelf_top>", "<trash_bin>", "<floor>"],
                 "asset_states": {"<shelf_bottom>": "on_something(<table>)", 
                                 "<trash_bin>": "on_something(<floor>)"},
@@ -87,81 +69,70 @@ Example 2:
 Example 3:
 """
 -Input:
-{"assets":["<fridge>", "<floor>"],
-"asset_states": {"<fridge>": "on_something(<floor>)"},
-"objects": ["<fridge_handle>"],
-"object_states": {"<fridge_handle>": "closed()"},
-"instruction": "Open the fridge."}
+{"assets":["<table>", "<floor>"],
+"asset_states": {"<table>": "on_something(<floor>)"},
+"objects": ["<box>", "<box_lid>"],
+"object_states": {"<box>": "on_something(<table>)", 
+                "<box_lid>": "open()"},
+"instruction": "Close the box."}
 - Output:
 {"task_cohesion": {
     "task_sequence": [
-        "move-hand(right)",
-        "grasp-object(right)",
-        "open-by-rotate(right)",
-        "release-object(right)"
+        "flap_close(right)"
     ],
     "step_instructions": [
-        "move the hand near the fridge handle",
-        "grasp the handle",
-        "open the fridge by pulling the handle",
-        "release the handle"
+        "close the box by rotating the lid down"
     ],
-    "object_names": ["<fridge_handle>"]},
-"environment_before": {"assets":["<fridge>", "<floor>"],
-    "asset_states": {"<fridge>": "on_something(<floor>)"},
-    "objects": ["<fridge_handle>"],
-    "object_states": {"<fridge_handle>": "closed()"}},
-"environment_after": {"assets":["<fridge>", "<floor>"],
-    "asset_states": {"<fridge>": "on_something(<floor>)"},
-    "objects": ["<fridge_handle>"],
-    "object_states": {"<fridge_handle>": "open()"}},
-"instruction_summary": "Open a fridge.",
+    "object_names": ["<box_lid>"]},
+"environment_before": {"assets":["<table>", "<floor>"],
+    "asset_states": {"<table>": "on_something(<floor>)"},
+    "objects": ["<box>", "<box_lid>"],
+    "object_states": {"<box>": "on_something(<table>)", 
+                    "<box_lid>": "open()"}},
+"environment_after": {"assets":["<table>", "<floor>"],
+    "asset_states": {"<table>": "on_something(<floor>)"},
+    "objects": ["<box>", "<box_lid>"],
+    "object_states": {"<box>": "on_something(<table>)", 
+                    "<box_lid>": "closed()"}},
+"instruction_summary": "Close a box.",
 "question":""}
 """
 Example 4:
 """
 -Input:
-{"assets":["<table>", "<window>"],
-"asset_states": {"<table>": "next_to(<window>)"},
-"objects": ["<sponge>"],
-"object_states": {"<sponge>": "on_something(<table>)"},
-"instruction": "Wipe the window with the sponge. Then, put the sponge on the table."}
+{"assets":["<table>", "<basket>", "<floor>"],
+"asset_states": {"<table>": "on_something(<floor>)", 
+                "<basket>": "on_something(<table>)"},
+"objects": ["<book>", "<eraser>"],
+"object_states": {"<book>": "on_something(<table>)", 
+                "<eraser>": "on_something(<table>)"},
+"instruction": "Straighten the book on the table, then put the eraser into the basket."}
 - Output:
 {"task_cohesion": {
     "task_sequence": [
-        "move-hand(right)",
-        "grasp-object(right)",
-        "detach_from_plane(right)",
-        "move_hand(right)",
-        "attach_to_plane(right)",
-        "wipe_on_plane(right)",
-        "detach_from_plane(right)",
-        "move_hand(right)",
-        "attach_to_plane(right)",
-        "release-object(right)"
+        "adjust(right)",
+        "pick(right)",
+        "place(right)"
     ],
     "step_instructions": [
-        "move the hand near the sponge",
-        "grasp the sponge",
-        "pick up the sponge",
-        "bring the sponge above the window",
-        "attach the sponge to the window",
-        "wipe the window with the sponge",
-        "detach the sponge from the window",
-        "bring the sponge above the table",
-        "put down the sponge",
-        "release the sponge"
+        "straighten the book without taking it off the table",
+        "pick up the eraser from the table",
+        "place the eraser into the basket"
     ],
-    "object_names": ["<sponge>"]},
-"environment_before": {"assets":["<table>", "<window>"],
-    "asset_states": {"<table>": "next_to(<window>)"},
-    "objects": ["<sponge>"],
-    "object_states": {"<sponge>": "on_something(<table>)"},}
-"environment_after": {"assets":["<table>", "<window>"],
-    "asset_states": {"<table>": "next_to(<window>)"},
-    "objects": ["<sponge>"],
-    "object_states": {"<sponge>": "on_something(<table>)"}},
-"instruction_summary": "Wipe the window with the sponge. Then, put the sponge on the table.",
+    "object_names": ["<book>", "<eraser>"]},
+"environment_before": {"assets":["<table>", "<basket>", "<floor>"],
+    "asset_states": {"<table>": "on_something(<floor>)", 
+                    "<basket>": "on_something(<table>)"},
+    "objects": ["<book>", "<eraser>"],
+    "object_states": {"<book>": "on_something(<table>)", 
+                    "<eraser>": "on_something(<table>)"}},
+"environment_after": {"assets":["<table>", "<basket>", "<floor>"],
+    "asset_states": {"<table>": "on_something(<floor>)", 
+                    "<basket>": "on_something(<table>)"},
+    "objects": ["<book>", "<eraser>"],
+    "object_states": {"<book>": "on_something(<table>)", 
+                    "<eraser>": "inside_something(<basket>)"}},
+"instruction_summary": "Straighten the book and put the eraser into the basket.",
 "question":""}
 """
 -------------------------------------------------------
