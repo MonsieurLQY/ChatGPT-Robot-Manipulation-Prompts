@@ -131,3 +131,5 @@ dmypy.json
 .pyre/
 
 changelog/
+
+CLAUDE.md

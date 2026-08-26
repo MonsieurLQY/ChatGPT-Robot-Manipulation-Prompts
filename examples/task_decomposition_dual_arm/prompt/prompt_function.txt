@@ -14,6 +14,7 @@ open_by_slide(): Moves an object that is translationally constrained in two axes
 adjust_by_slide(): Slide an object that is translationally constrained in two axes from its environment along one unbounded axis. For example, when widen the gap between a sliding door and the wall, the handle makes this movement.
 close_by_slide(): The opposite operation of open_by_slide().
 wipe_on_plane(): Move an object landing on a plane along two axes along that plane. For example, when wiping a window with a sponge, the sponge makes this motion.
+adjust(): Change the position or orientation of an object that rests freely on a plane, without detaching it from that plane. For example, when straightening a cup or aligning a book on a desk, the object makes this motion. Unlike adjust_by_rotate() and adjust_by_slide(), the object is not constrained by its environment.
 """
 In the (), insert left or right to specify the hand.
 -------------------------------------------------------
