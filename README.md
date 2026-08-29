@@ -21,8 +21,9 @@ Replace `<scenario_name>` with the name of the scenario you want to run. Specifi
 
 ### GigaToken / Sub2API
 
-The non-Azure examples use an OpenAI-compatible GigaToken endpoint with these
-defaults:
+The non-Azure examples — except `task_decomposition_dual_arm`, which uses
+Vertex AI Gemini (see below) — use an OpenAI-compatible GigaToken endpoint with
+these defaults:
 
 - Base URL: `https://sub2api.gigaapi.cc/v1`
 - Model: `gpt-5.4`
@@ -50,6 +51,95 @@ Run a sample from its directory:
 cd examples/task_decomposition
 python aimodel.py --scenario shelf
 ```
+
+## Dual-arm example: the `office_p` scenario
+
+[examples/task_decomposition_dual_arm](./examples/task_decomposition_dual_arm)
+runs on **Vertex AI Gemini** instead of the GigaToken endpoint. `office_p` is an
+image-grounded scenario: the environment dictionary is replaced by a scene photo
+and the model is asked to infer the objects and their states from the image.
+
+### Credentials
+
+Authentication uses a Google Cloud service-account JSON key, which must be kept
+outside this repository:
+
+```bash
+mkdir -p ~/.config/robopara
+# copy your service-account key there, then:
+chmod 600 ~/.config/robopara/<your-service-account>.json
+```
+
+Defaults: service-account key `~/.config/robopara/p-150gk23k-718446bc2ebd.json`,
+project `p-150gk23k`, location `global`, model `gemini-3.7-flash`.
+
+Override them with the constructor arguments `vertex_credentials_path`,
+`vertex_project`, `vertex_location`, and `vertex_model`, or with the environment
+variables `GOOGLE_APPLICATION_CREDENTIALS`, `GOOGLE_CLOUD_PROJECT`,
+`GOOGLE_CLOUD_LOCATION`, and `VERTEX_MODEL`:
+
+```bash
+export GOOGLE_APPLICATION_CREDENTIALS=~/.config/robopara/<your-service-account>.json
+export VERTEX_MODEL=gemini-3.7-flash
+```
+
+This example additionally needs `google-genai` and `google-auth`, both of which
+are in [requirements.txt](./requirements.txt).
+
+### Running it
+
+Scripts must be run from inside their own example directory — every path in them
+is relative:
+
+```bash
+cd examples/task_decomposition_dual_arm
+
+# image-grounded scenario (default image: ../../img/env_office_p2.jpg)
+python aimodel.py --scenario office_p
+
+# use a different scene photo (PNG, JPEG, or WebP)
+python aimodel.py --scenario office_p --image ../../img/your_scene.png
+
+# text-only dual-arm scenario, no image
+python aimodel.py --scenario fridge
+```
+
+After each response the script waits for input:
+
+- press **Enter** to accept the plan, advance the environment, and move on;
+- type any other text to send it back as feedback and regenerate;
+- type **`q`** to quit.
+
+Accepted plans are written to `./out/<scenario>/<i>.json`, for example
+`out/office_p/0.json`. The raw model reply of the most recent call is always
+dumped to `last_response.txt`, which is where to look if the JSON fails to parse.
+
+### Converting a plan into a schedule
+
+[to_schedule.py](./examples/task_decomposition_dual_arm/to_schedule.py) turns an
+accepted plan into the `schedule` block consumed by the scheduling project. It is
+offline — it makes no API calls — and reads the `task_sequence` /
+`step_instructions` pair produced above:
+
+```bash
+cd examples/task_decomposition_dual_arm
+
+# write the schedule to a file
+python to_schedule.py --input out/office_p/0.json --output out/office_p/0_schedule.json
+
+# or print it to stdout
+python to_schedule.py --input out/office_p/0.json
+```
+
+`--input` is required; omitting `--output` prints the JSON instead of writing it.
+
+Only the `schedule` field is generated. The `evaluation`, `solver`, and `chains`
+blocks are outputs of the CP-SAT solve, and the per-action `region` field depends
+on the physical layout of the scene, so none of them are fabricated here.
+
+The converter accepts only the skills `pick`, `place`, `flap_close`, and
+`adjust`. A plan generated from a different ROBOT ACTION LIST is refused with
+`conversion failed: unknown skill ...` rather than silently mangled.
 
 ## Bibliography
 ```

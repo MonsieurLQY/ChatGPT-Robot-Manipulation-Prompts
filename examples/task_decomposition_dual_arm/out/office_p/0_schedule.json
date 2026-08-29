@@ -1,7 +1,50 @@
 {
   "schedule": {
-    "total": 40,
-    "left": [],
+    "total": 30,
+    "left": [
+      {
+        "action_id": "L1",
+        "node_id": 3,
+        "skill": "flap_close",
+        "parameters": {
+          "target": "laptop",
+          "arm": "left"
+        },
+        "agents": [
+          "left"
+        ],
+        "preconditions": [],
+        "locked_resources": [
+          "left",
+          "laptop"
+        ],
+        "scheduled_start_s": 0,
+        "scheduled_end_s": 5,
+        "arm_num": 1,
+        "sync_with": []
+      },
+      {
+        "action_id": "L2",
+        "node_id": 8,
+        "skill": "adjust",
+        "parameters": {
+          "target": "cup",
+          "arm": "left"
+        },
+        "agents": [
+          "left"
+        ],
+        "preconditions": [],
+        "locked_resources": [
+          "left",
+          "cup"
+        ],
+        "scheduled_start_s": 5,
+        "scheduled_end_s": 10,
+        "arm_num": 1,
+        "sync_with": []
+      }
+    ],
     "right": [
       {
         "action_id": "R1",
@@ -53,27 +96,6 @@
       },
       {
         "action_id": "R3",
-        "node_id": 3,
-        "skill": "flap_close",
-        "parameters": {
-          "target": "laptop",
-          "arm": "right"
-        },
-        "agents": [
-          "right"
-        ],
-        "preconditions": [],
-        "locked_resources": [
-          "right",
-          "laptop"
-        ],
-        "scheduled_start_s": 10,
-        "scheduled_end_s": 15,
-        "arm_num": 1,
-        "sync_with": []
-      },
-      {
-        "action_id": "R4",
         "node_id": 4,
         "skill": "pick",
         "parameters": {
@@ -90,13 +112,13 @@
           "desktop_surface",
           "trash"
         ],
-        "scheduled_start_s": 15,
-        "scheduled_end_s": 20,
+        "scheduled_start_s": 10,
+        "scheduled_end_s": 15,
         "arm_num": 1,
         "sync_with": []
       },
       {
-        "action_id": "R5",
+        "action_id": "R4",
         "node_id": 5,
         "skill": "place",
         "parameters": {
@@ -108,20 +130,20 @@
           "right"
         ],
         "preconditions": [
-          "R4"
+          "R3"
         ],
         "locked_resources": [
           "right",
           "trash",
           "trash_bin"
         ],
-        "scheduled_start_s": 20,
-        "scheduled_end_s": 25,
+        "scheduled_start_s": 15,
+        "scheduled_end_s": 20,
         "arm_num": 1,
         "sync_with": []
       },
       {
-        "action_id": "R6",
+        "action_id": "R5",
         "node_id": 6,
         "skill": "pick",
         "parameters": {
@@ -138,13 +160,13 @@
           "desktop_surface",
           "mouse"
         ],
-        "scheduled_start_s": 25,
-        "scheduled_end_s": 30,
+        "scheduled_start_s": 20,
+        "scheduled_end_s": 25,
         "arm_num": 1,
         "sync_with": []
       },
       {
-        "action_id": "R7",
+        "action_id": "R6",
         "node_id": 7,
         "skill": "place",
         "parameters": {
@@ -156,36 +178,15 @@
           "right"
         ],
         "preconditions": [
-          "R6"
+          "R5"
         ],
         "locked_resources": [
           "right",
           "mouse",
           "laptop"
         ],
-        "scheduled_start_s": 30,
-        "scheduled_end_s": 35,
-        "arm_num": 1,
-        "sync_with": []
-      },
-      {
-        "action_id": "R8",
-        "node_id": 8,
-        "skill": "adjust",
-        "parameters": {
-          "target": "cup",
-          "arm": "right"
-        },
-        "agents": [
-          "right"
-        ],
-        "preconditions": [],
-        "locked_resources": [
-          "right",
-          "cup"
-        ],
-        "scheduled_start_s": 35,
-        "scheduled_end_s": 40,
+        "scheduled_start_s": 25,
+        "scheduled_end_s": 30,
         "arm_num": 1,
         "sync_with": []
       }

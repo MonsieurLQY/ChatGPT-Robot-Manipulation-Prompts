@@ -1,18 +1,33 @@
-import openai
+# import openai  # legacy OpenAI-compatible path, kept commented for rollback
+# import base64  # only used by the legacy base64 data-URL image path
 import tiktoken
-import base64
 import json
 import os
 import re
 import argparse
 from pathlib import Path
 
+from google import genai
+from google.genai import types
+from google.oauth2 import service_account
 
-DEFAULT_GIGATOKEN_KEY_PATH = (
-    Path.home() / ".config" / "robopara" / "gigatoken-key.txt"
+
+# Legacy OpenAI-compatible (GigaToken / Azure) configuration, kept commented
+# so the previous backend can be revived for comparison.
+# DEFAULT_GIGATOKEN_KEY_PATH = (
+#     Path.home() / ".config" / "robopara" / "gigatoken-key.txt"
+# )
+# DEFAULT_GIGATOKEN_BASE_URL = "https://sub2api.gigaapi.cc/v1"
+# DEFAULT_VLM_MODEL = "gpt-5.4"
+
+DEFAULT_VERTEX_SERVICE_ACCOUNT_PATH = Path(
+    "/home/lqy/.config/robopara/p-150gk23k-718446bc2ebd.json"
 )
-DEFAULT_GIGATOKEN_BASE_URL = "https://sub2api.gigaapi.cc/v1"
-DEFAULT_VLM_MODEL = "gpt-5.4"
+DEFAULT_VERTEX_PROJECT = "p-150gk23k"
+DEFAULT_VERTEX_LOCATION = "global"
+DEFAULT_VLM_MODEL = "gemini-3.7-flash"
+VERTEX_SCOPES = ("https://www.googleapis.com/auth/cloud-platform",)
+
 SUPPORTED_IMAGE_TYPES = {
     ".png": "image/png",
     ".jpg": "image/jpeg",
@@ -21,8 +36,9 @@ SUPPORTED_IMAGE_TYPES = {
 }
 
 enc = tiktoken.get_encoding("cl100k_base")
-with open('../../secrets.json') as f:
-    credentials = json.load(f)
+# Only the (commented) Azure backend reads secrets.json.
+# with open('../../secrets.json') as f:
+#     credentials = json.load(f)
 
 dir_system = './system'
 dir_prompt = './prompt'
@@ -33,37 +49,42 @@ prompt_load_order = ['prompt_role',
                      'prompt_output_format',
                      'prompt_example']
 
-# azure openai api has changed from '2023-05-15' to '2023-05-15'
-# if you are using a 0301 version, use '2022-12-01'
-# Otherwise, use '2023-05-15'
+# (legacy) azure openai api version: use '2022-12-01' for a 0301 version,
+# otherwise '2023-05-15'
 
 
 class ChatGPT:
-    VALID_API_VERSIONS = ['2022-12-01', '2023-05-15']
+    # VALID_API_VERSIONS = ['2022-12-01', '2023-05-15']
 
     def __init__(
             self,
-            credentials,
             prompt_load_order,
-            use_azure=True,
-            api_version='2023-05-15',
-            gigatoken_api_path=None,
-            gigatoken_base_url=None,
-            gigatoken_model=None):
-        self.use_azure = use_azure
-        if self.use_azure:
-            openai.api_key = credentials["azureopenai"]["AZURE_OPENAI_KEY"]
-            openai.api_base = credentials["azureopenai"]["AZURE_OPENAI_ENDPOINT"]
-            openai.api_type = 'azure'
-            if api_version not in self.VALID_API_VERSIONS:
-                raise ValueError(
-                    f'api_version must be one of {self.VALID_API_VERSIONS}')
-            openai.api_version = api_version
-        else:
-            self._configure_gigatoken(
-                api_path=gigatoken_api_path,
-                base_url=gigatoken_base_url,
-                model=gigatoken_model)
+            vertex_credentials_path=None,
+            vertex_model=None,
+            vertex_project=None,
+            vertex_location=None,
+            credentials=None):
+        # Legacy OpenAI-compatible backend selection, kept for rollback:
+        # self.use_azure = use_azure
+        # if self.use_azure:
+        #     openai.api_key = credentials["azureopenai"]["AZURE_OPENAI_KEY"]
+        #     openai.api_base = credentials["azureopenai"]["AZURE_OPENAI_ENDPOINT"]
+        #     openai.api_type = 'azure'
+        #     if api_version not in self.VALID_API_VERSIONS:
+        #         raise ValueError(
+        #             f'api_version must be one of {self.VALID_API_VERSIONS}')
+        #     openai.api_version = api_version
+        # else:
+        #     self._configure_gigatoken(
+        #         api_path=gigatoken_api_path,
+        #         base_url=gigatoken_base_url,
+        #         model=gigatoken_model)
+        self._configure_vertex(
+            credentials_path=vertex_credentials_path,
+            model=vertex_model,
+            project=vertex_project,
+            location=vertex_location)
+        # Only the commented-out Azure backend reads this.
         self.credentials = credentials
         self.messages = []
         self.max_token_length = 8000
@@ -95,56 +116,109 @@ class ChatGPT:
         with open(fp_query) as f:
             self.query = f.read()
 
-    def _configure_gigatoken(self, api_path=None, base_url=None, model=None):
-        self.model = model or os.getenv("GIGATOKEN_MODEL") or DEFAULT_VLM_MODEL
+    # =====================================================================
+    # Legacy GigaToken / OpenAI-compatible credential resolution, kept
+    # commented out. The live Vertex AI implementation follows below.
+    # =====================================================================
+    # def _configure_gigatoken(self, api_path=None, base_url=None, model=None):
+    #     self.model = model or os.getenv("GIGATOKEN_MODEL") or DEFAULT_VLM_MODEL
+    #
+    #     configured_base_url = (
+    #         base_url
+    #         or os.getenv("GIGATOKEN_BASE_URL")
+    #         or DEFAULT_GIGATOKEN_BASE_URL
+    #     )
+    #     if not configured_base_url:
+    #         raise ValueError(
+    #             "Gigatoken base URL is required. Pass gigatoken_base_url or "
+    #             "set GIGATOKEN_BASE_URL.")
+    #     self.base_url = configured_base_url.strip().rstrip("/")
+    #     if not self.base_url.startswith(("https://", "http://")):
+    #         raise ValueError(
+    #             "Gigatoken base URL must start with http:// or https://")
+    #
+    #     env_api_key = os.getenv("GIGATOKEN_API_KEY", "").strip()
+    #     configured_key_path = (
+    #         api_path
+    #         or os.getenv("GIGATOKEN_API_KEY_PATH")
+    #         or DEFAULT_GIGATOKEN_KEY_PATH
+    #     )
+    #     self.api_key_path = Path(configured_key_path).expanduser()
+    #
+    #     if env_api_key:
+    #         self.api_key = env_api_key
+    #     else:
+    #         try:
+    #             self.api_key = self.api_key_path.read_text(
+    #                 encoding="utf-8").strip()
+    #         except FileNotFoundError as exc:
+    #             raise FileNotFoundError(
+    #                 f"Gigatoken API key file not found: {self.api_key_path}. "
+    #                 "Create it or set GIGATOKEN_API_KEY.") from exc
+    #         except OSError as exc:
+    #             raise OSError(
+    #                 "Error reading Gigatoken API key file "
+    #                 f"{self.api_key_path}: {exc}") from exc
+    #
+    #     if not self.api_key:
+    #         raise ValueError("Gigatoken API key is empty")
+    #
+    #     openai.api_type = "open_ai"
+    #     openai.api_base = self.base_url
+    #     openai.api_key = self.api_key
+    #     openai.organization = None
 
-        configured_base_url = (
-            base_url
-            or os.getenv("GIGATOKEN_BASE_URL")
-            or DEFAULT_GIGATOKEN_BASE_URL
+    def _configure_vertex(
+            self,
+            credentials_path=None,
+            model=None,
+            project=None,
+            location=None):
+        """Build a service-account Vertex AI Gemini client.
+
+        Explicit arguments override environment variables, which in turn
+        override the project defaults.
+        """
+        self.model = model or os.getenv("VERTEX_MODEL") or DEFAULT_VLM_MODEL
+        self.project = (
+            project
+            or os.getenv("GOOGLE_CLOUD_PROJECT")
+            or DEFAULT_VERTEX_PROJECT
         )
-        if not configured_base_url:
-            raise ValueError(
-                "Gigatoken base URL is required. Pass gigatoken_base_url or "
-                "set GIGATOKEN_BASE_URL.")
-        self.base_url = configured_base_url.strip().rstrip("/")
-        if not self.base_url.startswith(("https://", "http://")):
-            raise ValueError(
-                "Gigatoken base URL must start with http:// or https://")
-
-        env_api_key = os.getenv("GIGATOKEN_API_KEY", "").strip()
-        configured_key_path = (
-            api_path
-            or os.getenv("GIGATOKEN_API_KEY_PATH")
-            or DEFAULT_GIGATOKEN_KEY_PATH
+        self.location = (
+            location
+            or os.getenv("GOOGLE_CLOUD_LOCATION")
+            or DEFAULT_VERTEX_LOCATION
         )
-        self.api_key_path = Path(configured_key_path).expanduser()
 
-        if env_api_key:
-            self.api_key = env_api_key
-        else:
-            try:
-                self.api_key = self.api_key_path.read_text(
-                    encoding="utf-8").strip()
-            except FileNotFoundError as exc:
-                raise FileNotFoundError(
-                    f"Gigatoken API key file not found: {self.api_key_path}. "
-                    "Create it or set GIGATOKEN_API_KEY.") from exc
-            except OSError as exc:
-                raise OSError(
-                    "Error reading Gigatoken API key file "
-                    f"{self.api_key_path}: {exc}") from exc
+        configured_credentials_path = (
+            credentials_path
+            or os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+            or DEFAULT_VERTEX_SERVICE_ACCOUNT_PATH
+        )
+        self.credentials_path = Path(configured_credentials_path).expanduser()
 
-        if not self.api_key:
-            raise ValueError("Gigatoken API key is empty")
+        try:
+            vertex_credentials = (
+                service_account.Credentials.from_service_account_file(
+                    self.credentials_path,
+                    scopes=VERTEX_SCOPES))
+        except FileNotFoundError as exc:
+            raise FileNotFoundError(
+                "Vertex AI service-account file not found: "
+                f"{self.credentials_path}. Pass vertex_credentials_path or "
+                "set GOOGLE_APPLICATION_CREDENTIALS.") from exc
+        except (OSError, ValueError) as exc:
+            raise ValueError(
+                "Unable to load Vertex AI service-account credentials from "
+                f"{self.credentials_path}: {exc}") from exc
 
-        openai.api_type = "open_ai"
-        openai.api_base = self.base_url
-        openai.api_key = self.api_key
-        openai.organization = None
+        self.client = genai.Client(
+            vertexai=True,
+            project=self.project,
+            location=self.location,
+            credentials=vertex_credentials)
 
-    # See
-    # https://learn.microsoft.com/en-us/azure/cognitive-services/openai/how-to/chatgpt#chatml
     def get_text_content(self, content):
         if isinstance(content, str):
             return content
@@ -155,39 +229,52 @@ class ChatGPT:
                 if isinstance(item, dict) and item.get('type') == 'text')
         return ''
 
+    def to_parts(self, content):
+        """Turn one stored message body into a list of Gemini parts."""
+        if isinstance(content, str):
+            return [types.Part.from_text(text=content)]
+        parts = []
+        for item in content:
+            if item.get('type') == 'text':
+                parts.append(types.Part.from_text(text=item['text']))
+            elif item.get('type') == 'image':
+                parts.append(
+                    types.Part.from_bytes(
+                        data=item['data'],
+                        mime_type=item['mime_type']))
+        return parts
+
     def create_prompt(self):
-        prompt = ""
-        if self.use_azure and openai.api_version == '2022-12-01':
-            prompt = "<|im_start|>system\n"
-            prompt += self.system_message["content"]
-            prompt += "\n<|im_end|>\n"
-            for message in self.messages:
-                prompt += f"\n<|im_start|>{message['sender']}\n{message['text']}\n<|im_end|>"
-            prompt += "\n<|im_start|>assistant\n"
-            print('prompt length: ' + str(len(enc.encode(prompt))))
-            if len(enc.encode(prompt)) > self.max_token_length - \
-                    self.max_completion_length:
-                print('prompt too long. truncated.')
-                # truncate the prompt by removing the oldest two messages
-                self.messages = self.messages[2:]
-                prompt = self.create_prompt()
-        else:
-            prompt = []
-            prompt.append(self.system_message)
-            for message in self.messages:
-                prompt.append(
-                    {"role": message['sender'], "content": message['text']})
-            prompt_content = ""
-            for message in prompt:
-                prompt_content += self.get_text_content(message["content"])
-            print('prompt length: ' + str(len(enc.encode(prompt_content))))
-            if len(enc.encode(prompt_content)) > self.max_token_length - \
-                    self.max_completion_length:
-                print('prompt too long. truncated.')
-                # truncate the prompt by removing the oldest two messages
-                self.messages = self.messages[2:]
-                prompt = self.create_prompt()
-        return prompt
+        # Legacy ChatML prompt used by the azure '2022-12-01' backend:
+        # if self.use_azure and openai.api_version == '2022-12-01':
+        #     prompt = "<|im_start|>system\n"
+        #     prompt += self.system_message["content"]
+        #     prompt += "\n<|im_end|>\n"
+        #     for message in self.messages:
+        #         prompt += f"\n<|im_start|>{message['sender']}\n{message['text']}\n<|im_end|>"
+        #     prompt += "\n<|im_start|>assistant\n"
+        #     ...
+        # The system message is no longer part of the turn list; it is passed
+        # to Gemini through GenerateContentConfig(system_instruction=...).
+        prompt_content = self.system_message["content"]
+        for message in self.messages:
+            prompt_content += self.get_text_content(message['text'])
+        print('prompt length: ' + str(len(enc.encode(prompt_content))))
+        if len(enc.encode(prompt_content)) > self.max_token_length - \
+                self.max_completion_length:
+            print('prompt too long. truncated.')
+            # truncate the prompt by removing the oldest two messages
+            self.messages = self.messages[2:]
+            return self.create_prompt()
+        contents = []
+        for message in self.messages:
+            # Gemini names the assistant role 'model'.
+            role = 'model' if message['sender'] == 'assistant' else 'user'
+            contents.append(
+                types.Content(
+                    role=role,
+                    parts=self.to_parts(message['text'])))
+        return contents
 
     def extract_json_part(self, text):
         text = text.strip()
@@ -204,7 +291,14 @@ class ChatGPT:
             return text[json_start:json_end + 1]
         return text
 
-    def encode_image(self, image_path):
+    # Legacy base64 data-URL encoder for the OpenAI vision format:
+    # def encode_image(self, image_path):
+    #     ...
+    #     encoded_image = base64.b64encode(image_bytes).decode('ascii')
+    #     return f'data:{mime_type};base64,{encoded_image}'
+
+    def load_image(self, image_path):
+        """Read a scene image as raw bytes for types.Part.from_bytes."""
         image_path = Path(image_path).expanduser()
         if not image_path.is_file():
             raise ValueError(f'Image file not found: {image_path}')
@@ -216,8 +310,7 @@ class ChatGPT:
         except OSError as exc:
             raise ValueError(
                 f'Could not read image file {image_path}: {exc}') from exc
-        encoded_image = base64.b64encode(image_bytes).decode('ascii')
-        return f'data:{mime_type};base64,{encoded_image}'
+        return image_bytes, mime_type
 
     def generate(
             self,
@@ -241,56 +334,75 @@ class ChatGPT:
             if image_path is None:
                 content = text_base
             else:
+                image_bytes, mime_type = self.load_image(image_path)
                 content = [
                     {'type': 'text', 'text': text_base},
                     {
-                        'type': 'image_url',
-                        'image_url': {
-                            'url': self.encode_image(image_path)
-                        }
+                        'type': 'image',
+                        'mime_type': mime_type,
+                        'data': image_bytes
                     }
                 ]
             self.messages.append({'sender': 'user', 'text': content})
 
-        if self.use_azure and openai.api_version == '2022-12-01':
-            # Remove unsafe user inputs. May need further refinement in the
-            # future.
-            if message.find('<|im_start|>') != -1:
-                message = message.replace('<|im_start|>', '')
-            if message.find('<|im_end|>') != -1:
-                message = message.replace('<|im_end|>', '')
-            deployment_name = self.credentials["azureopenai"]["AZURE_OPENAI_DEPLOYMENT_NAME_CHATGPT"]
-            response = openai.Completion.create(
-                engine=deployment_name,
-                prompt=self.create_prompt(),
+        # =================================================================
+        # Legacy OpenAI-compatible call sites, kept commented for rollback.
+        # =================================================================
+        # if self.use_azure and openai.api_version == '2022-12-01':
+        #     # Remove unsafe user inputs. May need further refinement in the
+        #     # future.
+        #     if message.find('<|im_start|>') != -1:
+        #         message = message.replace('<|im_start|>', '')
+        #     if message.find('<|im_end|>') != -1:
+        #         message = message.replace('<|im_end|>', '')
+        #     deployment_name = self.credentials["azureopenai"]["AZURE_OPENAI_DEPLOYMENT_NAME_CHATGPT"]
+        #     response = openai.Completion.create(
+        #         engine=deployment_name,
+        #         prompt=self.create_prompt(),
+        #         temperature=0.1,
+        #         max_tokens=self.max_completion_length,
+        #         top_p=0.5,
+        #         frequency_penalty=0.0,
+        #         presence_penalty=0.0,
+        #         stop=["<|im_end|>"])
+        #     text = response['choices'][0]['text']
+        # elif self.use_azure and openai.api_version == '2023-05-15':
+        #     deployment_name = self.credentials["azureopenai"]["AZURE_OPENAI_DEPLOYMENT_NAME_CHATGPT"]
+        #     response = openai.ChatCompletion.create(
+        #         engine=deployment_name,
+        #         messages=self.create_prompt(),
+        #         temperature=0.1,
+        #         max_tokens=self.max_completion_length,
+        #         top_p=0.5,
+        #         frequency_penalty=0.0,
+        #         presence_penalty=0.0)
+        #     text = response['choices'][0]['message']['content']
+        # else:
+        #     response = openai.ChatCompletion.create(
+        #         model=self.model,
+        #         messages=self.create_prompt(),
+        #         temperature=0.1,
+        #         max_tokens=self.max_completion_length,
+        #         top_p=0.5,
+        #         frequency_penalty=0.0,
+        #         presence_penalty=0.0)
+        #     text = response['choices'][0]['message']['content']
+
+        # max_output_tokens is deliberately left unset: Gemini counts thinking
+        # tokens against it, so a 2000-token cap truncates the task JSON.
+        response = self.client.models.generate_content(
+            model=self.model,
+            contents=self.create_prompt(),
+            config=types.GenerateContentConfig(
+                system_instruction=self.system_message["content"],
                 temperature=0.1,
-                max_tokens=self.max_completion_length,
-                top_p=0.5,
-                frequency_penalty=0.0,
-                presence_penalty=0.0,
-                stop=["<|im_end|>"])
-            text = response['choices'][0]['text']
-        elif self.use_azure and openai.api_version == '2023-05-15':
-            deployment_name = self.credentials["azureopenai"]["AZURE_OPENAI_DEPLOYMENT_NAME_CHATGPT"]
-            response = openai.ChatCompletion.create(
-                engine=deployment_name,
-                messages=self.create_prompt(),
-                temperature=0.1,
-                max_tokens=self.max_completion_length,
-                top_p=0.5,
-                frequency_penalty=0.0,
-                presence_penalty=0.0)
-            text = response['choices'][0]['message']['content']
-        else:
-            response = openai.ChatCompletion.create(
-                model=self.model,
-                messages=self.create_prompt(),
-                temperature=0.1,
-                max_tokens=self.max_completion_length,
-                top_p=0.5,
-                frequency_penalty=0.0,
-                presence_penalty=0.0)
-            text = response['choices'][0]['message']['content']
+                top_p=0.5))
+        text = response.text
+        if text is None:
+            raise RuntimeError(
+                "Gemini returned no text. "
+                f"prompt_feedback={getattr(response, 'prompt_feedback', None)!r}, "
+                f"candidates={getattr(response, 'candidates', None)!r}")
         print(text)
         self.last_response = text
         self.last_response = self.extract_json_part(self.last_response)
@@ -371,10 +483,7 @@ if __name__ == "__main__":
     else:
         parser.error('Invalid scenario name:' + scenario_name)
 
-    aimodel = ChatGPT(
-        credentials,
-        prompt_load_order=prompt_load_order,
-        use_azure=False)
+    aimodel = ChatGPT(prompt_load_order=prompt_load_order)
 
     if not os.path.exists('./out/' + scenario_name):
         os.makedirs('./out/' + scenario_name)
