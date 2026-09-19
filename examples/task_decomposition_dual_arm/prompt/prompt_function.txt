@@ -6,8 +6,9 @@ pick(): Take an object that is resting on or inside something, and hold it in th
 place(): Put the object that is currently held in the robot hand onto or into a target, and let go of it. This single action covers carrying the object to the target, setting it down, and releasing it. It is the opposite operation of pick(). For example, place() is used when a robot hand puts a marker into a pen holder.
 flap_close(): Close a hinged flap or lid by rotating it about its hinge until it is shut. For example, when closing a laptop, the laptop lid makes this motion.
 adjust(): Change the position or orientation of an object without taking it away from the surface it is resting on. For example, when straightening a cup that sits askew on a desk, the cup makes this motion.
+handover(): Transfer an object from one robot arm to the other within the same robot.
 """
-In the (), insert left or right to specify the hand. Never write anything else inside the parentheses, and never use an action that is not in the list above.
+In the (), insert left or right to specify the hand, except for handover. Never write anything else inside the parentheses, and never use an action that is not in the list above.
 -------------------------------------------------------
 The texts above are part of the overall instruction. Do not start working yet:
 [assistant]

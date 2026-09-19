@@ -1,31 +1,33 @@
 {
     "task_cohesion": {
         "task_sequence": [
-            "pick(right)",
-            "place(right)",
             "flap_close(left)",
             "pick(right)",
             "place(right)",
             "pick(right)",
-            "place(right)",
+            "handover()",
+            "place(left)",
+            "pick(left)",
+            "place(left)",
             "adjust(left)"
         ],
         "step_instructions": [
-            "pick up the marker from the desktop",
+            "close the laptop by rotating its lid down",
+            "pick up the marker from the table",
             "place the marker into the pen holder",
-            "close the laptop lid",
-            "pick up the trash from the desktop",
-            "place the trash into the trash bin",
-            "pick up the mouse from the desktop",
-            "place the mouse on the laptop",
-            "adjust the position of the cup on the desktop"
+            "pick up the newspaper trash from the table",
+            "hand over the newspaper trash from the right hand to the left hand",
+            "place the newspaper trash into the trash bin",
+            "pick up the mouse from the table",
+            "place the mouse on top of the laptop",
+            "straighten the red tipped cup upright on the table"
         ],
         "object_names": [
+            "<laptop>",
             "<marker>",
-            "<laptop_lid>",
-            "<trash>",
+            "<flat_newspaper_trash>",
             "<mouse>",
-            "<cup>"
+            "<red_tipped_cup>"
         ]
     },
     "environment_before": {
@@ -36,25 +38,22 @@
             "<floor>"
         ],
         "asset_states": {
-            "<table>": "on_something(<floor>)",
             "<trash_bin>": "on_something(<table>)",
             "<pen_holder>": "on_something(<table>)"
         },
         "objects": [
-            "<marker>",
             "<laptop>",
-            "<laptop_lid>",
-            "<trash>",
+            "<marker>",
+            "<flat_newspaper_trash>",
             "<mouse>",
-            "<cup>"
+            "<red_tipped_cup>"
         ],
         "object_states": {
+            "<laptop>": "open()",
             "<marker>": "on_something(<table>)",
-            "<laptop>": "on_something(<table>)",
-            "<laptop_lid>": "open()",
-            "<trash>": "on_something(<table>)",
+            "<flat_newspaper_trash>": "on_something(<table>)",
             "<mouse>": "on_something(<table>)",
-            "<cup>": "on_something(<table>)"
+            "<red_tipped_cup>": "on_something(<table>)"
         }
     },
     "environment_after": {
@@ -65,27 +64,24 @@
             "<floor>"
         ],
         "asset_states": {
-            "<table>": "on_something(<floor>)",
             "<trash_bin>": "on_something(<table>)",
             "<pen_holder>": "on_something(<table>)"
         },
         "objects": [
-            "<marker>",
             "<laptop>",
-            "<laptop_lid>",
-            "<trash>",
+            "<marker>",
+            "<flat_newspaper_trash>",
             "<mouse>",
-            "<cup>"
+            "<red_tipped_cup>"
         ],
         "object_states": {
+            "<laptop>": "closed()",
             "<marker>": "inside_something(<pen_holder>)",
-            "<laptop>": "on_something(<table>)",
-            "<laptop_lid>": "closed()",
-            "<trash>": "inside_something(<trash_bin>)",
+            "<flat_newspaper_trash>": "inside_something(<trash_bin>)",
             "<mouse>": "on_something(<laptop>)",
-            "<cup>": "on_something(<table>)"
+            "<red_tipped_cup>": "on_something(<table>)"
         }
     },
-    "instruction_summary": "Clean and organize the desktop by tidying the marker, laptop, trash, mouse, and cup.",
+    "instruction_summary": "Close the laptop, put the marker into the pen holder, throw away the newspaper trash into the trash bin, place the mouse on the laptop, and straighten the cup.",
     "question": ""
 }

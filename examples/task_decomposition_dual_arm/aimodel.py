@@ -469,16 +469,17 @@ if __name__ == "__main__":
             parser.error('--image is not used by the fridge scenario')
     elif scenario_name == 'office_p':
         environment = None
-        image_path = args.image or '../../img/env_office_p2.jpg'
+        image_path = args.image or '../../img/env_office_p4.png'
         instructions = [
-            '1. Pick up the marker from the desktop. '
-            '2. Put the marker into the pen holder. '
-            '3. Close the laptop lid. '
-            '4. Pick up the trash from the desktop. '
-            '5. Put the trash into the trash bin. '
-            '6. Pick up the mouse from the desktop. '
-            '7. Put the mouse on the laptop. '
-            '8. Adjust the position of the cup on the desktop.',
+            '1. flap_close("laptop") (Single arm, 8.5 seconds) '
+            '2. pick("desktop_surface", "marker") (Single arm, 4 seconds) '
+            '3. place("marker", "pen_holder") (Single arm, 4.5 seconds) '
+            '4. pick("desktop_surface", "flat_newspaper_trash") (Single arm, 4 seconds) '
+            '5. handover("flat_newspaper_trash", "", target_region)'
+            '6. place("flat_newspaper_trash", "trash_bin") (Single arm, 4 seconds) '
+            '7. pick("desktop_surface", "mouse") (Single arm, 4 seconds) '
+            '8. place("mouse", "laptop") (Single arm, 4 seconds) '
+            '9. adjust("red_tipped_cup", "upright") (Single arm, 7 seconds)',
         ]
     else:
         parser.error('Invalid scenario name:' + scenario_name)
