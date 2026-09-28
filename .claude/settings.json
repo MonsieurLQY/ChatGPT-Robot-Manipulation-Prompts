@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//home/lqy/Projects/RoboPARA-2.0/tests/**)",
+      "Read(//home/lqy/Projects/RoboPARA-2.0/**)",
+      "Bash(python -m unittest tests.test_chatgpt_server tests.test_chatgpt_prompt)",
+      "Read(//home/lqy/miniconda3/envs/**)",
+      "Read(//home/lqy/Projects/RoboPARA-2.0/changelog/**)"
+    ],
+    "additionalDirectories": [
+      "/home/lqy/Projects/RoboPARA-2.0/robopara2/benchmark",
+      "/home/lqy/Projects/RoboPARA-2.0/robopara2/execution",
+      "/home/lqy/Projects/RoboPARA-2.0/scripts",
+      "/home/lqy/Projects/RoboPARA-2.0/tests"
+    ]
+  }
+}

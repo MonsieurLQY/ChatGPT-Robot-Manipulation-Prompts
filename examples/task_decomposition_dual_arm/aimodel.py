@@ -469,15 +469,23 @@ def fetch_robopara_frame(server_url, out_dir):
     return frame_path
 
 
-def submit_robopara_plan(server_url, json_dict, report_dir=None):
+def submit_robopara_plan(
+        server_url,
+        json_dict,
+        report_dir=None,
+        planning_wallclock_s=None):
     """POST one accepted plan; return True once the server accepts it.
 
-    With report_dir, RoboPARA writes report.json and terminal.txt there
-    after the simulation finishes (both processes share this machine).
+    With report_dir, RoboPARA writes report.json (including its score) and
+    terminal.txt there after the simulation finishes (both processes share
+    this machine). planning_wallclock_s is the model time spent on the
+    plan; without it RoboPARA scores the whole wait, human review included.
     """
     body = {'protocol_version': ROBOPARA_PROTOCOL, 'plan': json_dict}
     if report_dir is not None:
         body['report_dir'] = os.path.abspath(report_dir)
+    if planning_wallclock_s is not None:
+        body['planning_wallclock_s'] = planning_wallclock_s
     request = urllib.request.Request(
         server_url.rstrip('/') + '/v1/chatgpt/plan',
         data=json.dumps(body).encode('utf-8'),
@@ -506,7 +514,8 @@ def submit_robopara_plan(server_url, json_dict, report_dir=None):
         print(f'  {node["node_id"]}: {node["agents"]} {node["args"]}')
     if reply.get('report_dir'):
         print(f'Simulation report will be written to {reply["report_dir"]} '
-              '(report.json, terminal.txt) when RoboPARA finishes.')
+              '(report.json with score, terminal.txt) when RoboPARA '
+              'finishes.')
     return True
 
 
@@ -553,6 +562,18 @@ if __name__ == "__main__":
             parser.error('--server-url is only used by the office_p scenario')
     elif scenario_name == 'office_p':
         environment = None
+        # The same instruction plans both a local image and a RoboPARA frame.
+        instructions = [
+            '1. flap_close("laptop") (Single arm, 8.5 seconds) '
+            '2. pick("desktop_surface", "marker") (Single arm, 4 seconds) '
+            '3. place("marker", "pen_holder") (Single arm, 4.5 seconds) '
+            '4. pick("desktop_surface", "flat_newspaper_trash") (Single arm, 4 seconds) '
+            '5. handover("flat_newspaper_trash", "", target_region)'
+            '6. place("flat_newspaper_trash", "trash_bin") (Single arm, 4 seconds) '
+            '7. pick("desktop_surface", "mouse") (Single arm, 4 seconds) '
+            '8. place("mouse", "laptop") (Single arm, 4 seconds) '
+            '9. adjust("red_tipped_cup", "upright") (Single arm, 7 seconds)',
+        ]
         if args.server_url is not None:
             if args.image is not None:
                 parser.error('--image and --server-url are mutually exclusive')
@@ -560,17 +581,6 @@ if __name__ == "__main__":
                 args.server_url, './out/' + scenario_name)
         else:
             image_path = args.image or '../../img/env_office_p4.png'
-            instructions = [
-                '1. flap_close("laptop") (Single arm, 8.5 seconds) '
-                '2. pick("desktop_surface", "marker") (Single arm, 4 seconds) '
-                '3. place("marker", "pen_holder") (Single arm, 4.5 seconds) '
-                '4. pick("desktop_surface", "flat_newspaper_trash") (Single arm, 4 seconds) '
-                '5. handover("flat_newspaper_trash", "", target_region)'
-                '6. place("flat_newspaper_trash", "trash_bin") (Single arm, 4 seconds) '
-                '7. pick("desktop_surface", "mouse") (Single arm, 4 seconds) '
-                '8. place("mouse", "laptop") (Single arm, 4 seconds) '
-                '9. adjust("red_tipped_cup", "upright") (Single arm, 7 seconds)',
-            ]
     else:
         parser.error('Invalid scenario name:' + scenario_name)
 
@@ -583,19 +593,25 @@ if __name__ == "__main__":
             print(json.dumps(environment))
         else:
             print(f'environment image: {image_path}')
+        # Model time only (regenerations included, human review excluded);
+        # RoboPARA reports it as the score's planning phase.
+        started = time.perf_counter()
         text = aimodel.generate(
             instruction,
             environment,
             is_user_feedback=False,
             image_path=image_path)
+        planning_wallclock_s = time.perf_counter() - started
         while True:
             user_feedback = input(
                 'user feedback (return empty if satisfied): ')
             if user_feedback == 'q':
                 exit()
             if user_feedback != '':
+                started = time.perf_counter()
                 text = aimodel.generate(
                     user_feedback, environment, is_user_feedback=True)
+                planning_wallclock_s += time.perf_counter() - started
             else:
                 if args.server_url is not None:
                     aimodel.dump_json(f'./out/{scenario_name}/{i}')
@@ -604,7 +620,8 @@ if __name__ == "__main__":
                         time.strftime('%Y%m%dT%H%M%S'))
                     if not submit_robopara_plan(
                             args.server_url, aimodel.json_dict,
-                            report_dir=report_dir):
+                            report_dir=report_dir,
+                            planning_wallclock_s=planning_wallclock_s):
                         print('Enter feedback to regenerate the plan, '
                               'return empty to resend, or q to quit.')
                         continue
