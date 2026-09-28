@@ -5,6 +5,9 @@ import json
 import os
 import re
 import argparse
+import time
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 from google import genai
@@ -34,6 +37,11 @@ SUPPORTED_IMAGE_TYPES = {
     ".jpeg": "image/jpeg",
     ".webp": "image/webp",
 }
+
+# RoboPARA one-shot bridge (scripts/serve_desktop_cleanup_chatgpt_prompt.py
+# in RoboPARA-2.0): GET the initial frame once, POST the accepted plan once.
+ROBOPARA_PROTOCOL = 'robopara.chatgpt_prompt.v1'
+ROBOPARA_TIMEOUT_S = 30
 
 enc = tiktoken.get_encoding("cl100k_base")
 # Only the (commented) Azure backend reads secrets.json.
@@ -433,6 +441,75 @@ class ChatGPT:
                 json.dump(self.json_dict, f, indent=4)
 
 
+def fetch_robopara_frame(server_url, out_dir):
+    """Download the simulator's initial frame; return its local path."""
+    server_url = server_url.rstrip('/')
+    try:
+        with urllib.request.urlopen(
+                server_url + '/v1/chatgpt/info',
+                timeout=ROBOPARA_TIMEOUT_S) as response:
+            info = json.loads(response.read())
+        with urllib.request.urlopen(
+                server_url + '/v1/chatgpt/frame',
+                timeout=ROBOPARA_TIMEOUT_S) as response:
+            frame = response.read()
+    except urllib.error.URLError as exc:
+        raise RuntimeError(
+            f'Cannot reach RoboPARA server {server_url}: {exc}') from exc
+    if info.get('protocol_version') != ROBOPARA_PROTOCOL:
+        raise RuntimeError(
+            'RoboPARA protocol mismatch: '
+            f'{info.get("protocol_version")!r} != {ROBOPARA_PROTOCOL!r}')
+    os.makedirs(out_dir, exist_ok=True)
+    frame_path = os.path.join(out_dir, f'frame_seed{info["seed"]}.jpg')
+    with open(frame_path, 'wb') as f:
+        f.write(frame)
+    print(f'RoboPARA task={info["task_id"]} seed={info["seed"]} '
+          f'frame={frame_path}')
+    return frame_path
+
+
+def submit_robopara_plan(server_url, json_dict, report_dir=None):
+    """POST one accepted plan; return True once the server accepts it.
+
+    With report_dir, RoboPARA writes report.json and terminal.txt there
+    after the simulation finishes (both processes share this machine).
+    """
+    body = {'protocol_version': ROBOPARA_PROTOCOL, 'plan': json_dict}
+    if report_dir is not None:
+        body['report_dir'] = os.path.abspath(report_dir)
+    request = urllib.request.Request(
+        server_url.rstrip('/') + '/v1/chatgpt/plan',
+        data=json.dumps(body).encode('utf-8'),
+        headers={'Content-Type': 'application/json'},
+        method='POST')
+    try:
+        with urllib.request.urlopen(
+                request, timeout=ROBOPARA_TIMEOUT_S) as response:
+            reply = json.loads(response.read())
+    except urllib.error.HTTPError as exc:
+        try:
+            reply = json.loads(exc.read())
+        except ValueError:
+            reply = {}
+        print(f'RoboPARA rejected the plan (HTTP {exc.code}): '
+              f'{reply.get("error", exc.reason)}')
+        if reply.get('validation'):
+            print(json.dumps(reply['validation'], indent=2))
+        return False
+    except urllib.error.URLError as exc:
+        print(f'Cannot reach RoboPARA server: {exc}')
+        return False
+    print(f'RoboPARA accepted plan {reply["plan_id"]} '
+          f'({reply["node_count"]} nodes); simulation is running there.')
+    for node in reply['nodes']:
+        print(f'  {node["node_id"]}: {node["agents"]} {node["args"]}')
+    if reply.get('report_dir'):
+        print(f'Simulation report will be written to {reply["report_dir"]} '
+              '(report.json, terminal.txt) when RoboPARA finishes.')
+    return True
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -444,6 +521,11 @@ if __name__ == "__main__":
         '--image',
         type=str,
         help='optional image override for an image-based scenario')
+    parser.add_argument(
+        '--server-url',
+        type=str,
+        help='RoboPARA ChatGPT prompt server (e.g. http://127.0.0.1:8020): '
+             'plan from its initial frame and send the accepted plan back')
     args = parser.parse_args()
     scenario_name = args.scenario
     # Dual arm manipulation
@@ -467,20 +549,28 @@ if __name__ == "__main__":
         image_path = None
         if args.image is not None:
             parser.error('--image is not used by the fridge scenario')
+        if args.server_url is not None:
+            parser.error('--server-url is only used by the office_p scenario')
     elif scenario_name == 'office_p':
         environment = None
-        image_path = args.image or '../../img/env_office_p4.png'
-        instructions = [
-            '1. flap_close("laptop") (Single arm, 8.5 seconds) '
-            '2. pick("desktop_surface", "marker") (Single arm, 4 seconds) '
-            '3. place("marker", "pen_holder") (Single arm, 4.5 seconds) '
-            '4. pick("desktop_surface", "flat_newspaper_trash") (Single arm, 4 seconds) '
-            '5. handover("flat_newspaper_trash", "", target_region)'
-            '6. place("flat_newspaper_trash", "trash_bin") (Single arm, 4 seconds) '
-            '7. pick("desktop_surface", "mouse") (Single arm, 4 seconds) '
-            '8. place("mouse", "laptop") (Single arm, 4 seconds) '
-            '9. adjust("red_tipped_cup", "upright") (Single arm, 7 seconds)',
-        ]
+        if args.server_url is not None:
+            if args.image is not None:
+                parser.error('--image and --server-url are mutually exclusive')
+            image_path = fetch_robopara_frame(
+                args.server_url, './out/' + scenario_name)
+        else:
+            image_path = args.image or '../../img/env_office_p4.png'
+            instructions = [
+                '1. flap_close("laptop") (Single arm, 8.5 seconds) '
+                '2. pick("desktop_surface", "marker") (Single arm, 4 seconds) '
+                '3. place("marker", "pen_holder") (Single arm, 4.5 seconds) '
+                '4. pick("desktop_surface", "flat_newspaper_trash") (Single arm, 4 seconds) '
+                '5. handover("flat_newspaper_trash", "", target_region)'
+                '6. place("flat_newspaper_trash", "trash_bin") (Single arm, 4 seconds) '
+                '7. pick("desktop_surface", "mouse") (Single arm, 4 seconds) '
+                '8. place("mouse", "laptop") (Single arm, 4 seconds) '
+                '9. adjust("red_tipped_cup", "upright") (Single arm, 7 seconds)',
+            ]
     else:
         parser.error('Invalid scenario name:' + scenario_name)
 
@@ -507,6 +597,17 @@ if __name__ == "__main__":
                 text = aimodel.generate(
                     user_feedback, environment, is_user_feedback=True)
             else:
+                if args.server_url is not None:
+                    aimodel.dump_json(f'./out/{scenario_name}/{i}')
+                    report_dir = os.path.join(
+                        './out', scenario_name, 'sim_reports',
+                        time.strftime('%Y%m%dT%H%M%S'))
+                    if not submit_robopara_plan(
+                            args.server_url, aimodel.json_dict,
+                            report_dir=report_dir):
+                        print('Enter feedback to regenerate the plan, '
+                              'return empty to resend, or q to quit.')
+                        continue
                 # update the current environment
                 environment = aimodel.environment
                 break

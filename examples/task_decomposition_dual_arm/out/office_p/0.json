@@ -7,20 +7,20 @@
             "pick(right)",
             "handover()",
             "place(left)",
-            "pick(left)",
-            "place(left)",
+            "pick(right)",
+            "place(right)",
             "adjust(left)"
         ],
         "step_instructions": [
-            "close the laptop by rotating its lid down",
-            "pick up the marker from the table",
-            "place the marker into the pen holder",
-            "pick up the newspaper trash from the table",
-            "hand over the newspaper trash from the right hand to the left hand",
-            "place the newspaper trash into the trash bin",
-            "pick up the mouse from the table",
-            "place the mouse on top of the laptop",
-            "straighten the red tipped cup upright on the table"
+            "close the laptop with the left hand",
+            "pick up the marker from the table with the right hand",
+            "place the marker into the pen holder with the right hand",
+            "pick up the flat newspaper trash from the table with the right hand",
+            "hand over the flat newspaper trash from the right hand to the left hand",
+            "place the flat newspaper trash into the trash bin with the left hand",
+            "pick up the mouse from the table with the right hand",
+            "place the mouse on the laptop with the right hand",
+            "adjust the red-tipped cup to an upright position with the left hand"
         ],
         "object_names": [
             "<laptop>",
@@ -38,6 +38,7 @@
             "<floor>"
         ],
         "asset_states": {
+            "<table>": "on_something(<floor>)",
             "<trash_bin>": "on_something(<table>)",
             "<pen_holder>": "on_something(<table>)"
         },
@@ -64,6 +65,7 @@
             "<floor>"
         ],
         "asset_states": {
+            "<table>": "on_something(<floor>)",
             "<trash_bin>": "on_something(<table>)",
             "<pen_holder>": "on_something(<table>)"
         },
@@ -82,6 +84,6 @@
             "<red_tipped_cup>": "on_something(<table>)"
         }
     },
-    "instruction_summary": "Close the laptop, put the marker into the pen holder, throw away the newspaper trash into the trash bin, place the mouse on the laptop, and straighten the cup.",
+    "instruction_summary": "Close the laptop, place the marker into the pen holder, throw the newspaper trash into the trash bin, place the mouse on the laptop, and adjust the cup upright.",
     "question": ""
 }
